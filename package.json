@@ -1,0 +1,27 @@
+{
+  "name": "envshed-skills",
+  "version": "1.0.0",
+  "description": "Agent skill for envshed — secrets management CLI for syncing environment variables across teams, projects, and environments",
+  "keywords": [
+    "agent-skill",
+    "envshed",
+    "envshed-skills",
+    "secrets",
+    "environment-variables",
+    "env",
+    "dotenv",
+    "secrets-management",
+    "cli",
+    "monorepo",
+    "ci-cd"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/irbano-tech/envshed-skill.git"
+  },
+  "homepage": "https://github.com/irbano-tech/envshed-skill#readme",
+  "bugs": {
+    "url": "https://github.com/irbano-tech/envshed-skill/issues"
+  }
+}
