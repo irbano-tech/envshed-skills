@@ -1,124 +1,95 @@
-# Workspaces & Monorepo Support
+# Workspaces and Monorepos
 
-Envshed has first-class monorepo support with automatic workspace detection and per-workspace configuration.
-
-## How It Works
-
-When `.envshed.json` contains a `workspaces` key, envshed operates in workspace mode. Each workspace maps a directory path to a project, environment, and output file.
+Workspaces map packages in a monorepo to their own Envshed project, environment and env file.
 
 ## Setup
 
-### Auto-Detection
-
-`envshed init` automatically detects monorepo packages from:
-- `pnpm-workspace.yaml` — reads `packages` globs
-- `package.json` `workspaces` field — reads workspace paths
-
-It prompts you to select which packages should be configured as workspaces.
-
-### Manual Setup
-
 ```bash
-# Add a workspace interactively
-envshed workspace add apps/api
-
-# Or use init for a single workspace
-envshed init -w apps/api
+envshed init                         # at the root: detects pnpm-workspace.yaml or package.json workspaces
+envshed init --workspace apps/web    # add one workspace (prompts for project, env, file)
+envshed workspace add apps/web       # same, after initial setup
+envshed workspace remove apps/web
+envshed workspace list
 ```
 
 ## Configuration
 
-### `.envshed.json` with Workspaces
-
 ```json
 {
   "org": "my-org",
-  "apiUrl": "https://app.envshed.com",
   "workspaces": {
-    "apps/api": {
-      "project": "api-backend",
-      "defaultEnv": "development",
-      "file": ".env"
-    },
     "apps/web": {
       "project": "web-frontend",
       "defaultEnv": "development",
       "file": ".env.local"
     },
+    "apps/api": {
+      "project": "backend-api",
+      "defaultEnv": "development"
+    },
     "packages/shared": {
       "org": "other-org",
-      "project": "shared-lib",
-      "defaultEnv": "development",
-      "file": ".env"
+      "project": "shared-lib"
     }
   }
 }
 ```
 
-Each workspace can override:
-- `org` — different organization (cross-org monorepos)
-- `project` — the envshed project to map to
-- `defaultEnv` — environment to use by default
-- `file` — output filename for pulled secrets (default: `.env`)
+| Field | Description | Required | Default |
+|---|---|---|---|
+| `project` | Envshed project slug | Yes | |
+| `defaultEnv` | Current environment slug | No | |
+| `file` | Env file name, relative to the workspace | No | `.env` |
+| `org` | Override the top-level org | No | Top-level `org` |
 
-## Workspace Commands
+A top-level `project` and `defaultEnv` can sit alongside `workspaces` when the root is a project too (for example shared infrastructure secrets). Without `workspaces`, everything works in single-project mode.
 
-### Targeting a Specific Workspace
+## How commands pick a workspace
 
-Use `-w` / `--workspace` to target a single workspace:
+| Where you are | Behavior |
+|---|---|
+| Inside a workspace directory | Only that workspace |
+| At the root | `pull`, `push` and `env checkout` act on every workspace (and the root project, if set); `run` needs `--workspace` |
+| `-w, --workspace <path>` | Only that workspace, from anywhere |
+| `-a, --all` | Every workspace and the root project, even when a root project is configured |
 
-```bash
-envshed pull -w apps/api           # Pull secrets for apps/api only
-envshed push -w apps/web           # Push secrets for apps/web only
-envshed env staging -w apps/api    # Switch env for apps/api only
-envshed branch -w apps/api         # Show context for apps/api
-```
-
-### Bulk Mode (`--all`)
-
-Use `-a` / `--all` to run a command across all workspaces:
+`--workspace` and `--all` are global options. Put them before the command, as the docs do:
 
 ```bash
-envshed pull --all                 # Pull secrets for every workspace
-envshed push --all                 # Push secrets for every workspace
+envshed --workspace apps/api pull
+envshed --workspace apps/web push
+envshed --workspace apps/api run -- npm start
+envshed --workspace apps/web env checkout staging
+envshed --all pull
 ```
 
-**Note:** `envshed run` does not support `--all` — you must target a specific workspace.
+The CLI finds the current directory from `INIT_CWD` when run through pnpm or npm scripts, so `pnpm --filter` does not confuse it.
 
-### Managing Workspaces
+- `run` always needs one workspace context; `--all` is not supported.
+- `link` and `unlink` do not support `--all`; use `--workspace`.
+- `-f` on `pull` or `push` overrides the workspace's `file` for that call.
 
-```bash
-envshed workspace list             # Show all configured workspaces
-envshed workspace add <path>       # Add a workspace (interactive)
-envshed workspace remove <path>    # Remove a workspace from config
-```
+## Output
 
-## Branch Context in Workspace Mode
-
-`envshed branch` displays a table when in workspace mode:
+`envshed pull` at the root:
 
 ```
-Workspace       Project         Environment
-apps/api        api-backend     development
-apps/web        web-frontend    staging
-packages/shared shared-lib      development
+  my-org / web-frontend / development
+✔ Wrote 12 secrets to apps/web/.env.local
+  my-org / backend-api / development
+✔ Wrote 8 secrets to apps/api/.env
+Pulled secrets for 2 workspaces
 ```
 
-## Bulk Push with Linked Secrets
+`envshed branch` in workspace mode marks the current workspace with `*`:
 
-When pushing all workspaces (`--all`), if any secrets are linked across projects, envshed:
-1. Pushes each workspace in sequence
-2. Detects linked secret conflicts
-3. Prompts for resolution (keep mine / keep theirs / unlink)
-4. Auto-pulls after all pushes to sync propagated changes
+```
+  org:     my-org
+    Path          Project         Env          File
+* apps/web      web-frontend    development  .env.local
+  apps/api      backend-api     development  .env
+```
 
-## Auto-Detection of Workspace Context
+## Linked secrets across workspaces
 
-When running commands from within a workspace directory (e.g., `cd apps/api && envshed pull`), envshed auto-detects the workspace from `INIT_CWD` (pnpm/npm) or the current working directory relative to the `.envshed.json` location.
-
-## Workspace File Placement
-
-Pulled secrets are written to `<workspace-path>/<file>`. For example, with the config above:
-- `apps/api/.env`
-- `apps/web/.env.local`
-- `packages/shared/.env`
+Workspaces often map to different projects that share a key such as `DATABASE_URL`. Link it once (`envshed --workspace apps/web link DATABASE_URL --to-project backend-api --to-env development`) and a push from either side propagates the value. See [sharing-and-states.md](sharing-and-states.md#secret-links-cross-project).

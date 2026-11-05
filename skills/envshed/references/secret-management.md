@@ -1,157 +1,127 @@
 # Secret Management
 
-Detailed guide for managing individual secrets, versions, snapshots, linking, definitions, and import/export.
+Day-to-day secret operations: pull, push, single secrets, history, snapshots, import and diff. For disabled secrets, placeholders, overrides, references, links, share links and definitions see [sharing-and-states.md](sharing-and-states.md).
 
-## Individual Secret Operations
+Commands marked **human terminal only** print values. An AI agent must not run them; use `envshed run` instead (see [agent-safety.md](agent-safety.md)).
 
-### Get, Set, Delete
-
-```bash
-envshed secret get DATABASE_URL               # Print secret value
-envshed secret set API_KEY                    # Prompts for value (hidden input)
-envshed secret delete OLD_KEY                 # Delete a secret
-```
-
-### Personal Overrides
-
-Personal overrides let individual users set their own values for specific secrets without affecting the team. Useful for local database URLs, API keys to personal sandboxes, etc.
+## Pull
 
 ```bash
-envshed secret override set LOCAL_DB    # Prompts for value (hidden input or stdin)
-envshed secret override remove LOCAL_DB # Remove override (-y to skip confirmation)
+envshed pull [-o <org>] [-p <project>] [-e <env>] [-f <path>] [--stdout] [--format env|json] [--force]
 ```
 
-Overrides are encrypted per-user and take precedence when pulling secrets.
+| Option | Description | Default |
+|---|---|---|
+| `-f, --file <path>` | Output file | `.env` (or the workspace's `file`) |
+| `--stdout` | Print instead of writing a file (**human terminal only**) | |
+| `--format <format>` | `env` or `json` | `env` |
+| `--force` | Overwrite without checking for changes | |
 
-## Breaking Change Detection
+- **Safe pull:** if pulling would modify or delete values in the existing file, the command aborts and lists them (`~ KEY (modified)`, `- KEY (deleted)`). Run again with `--force` to overwrite.
+- Warns about placeholders that have no personal override, with links to set one.
+- Disabled secrets are never written (`N disabled secrets skipped`).
+- References are already resolved by the server.
+- Values with carriage returns or every dotenv quote character need `--format json`.
+- The CLI caches the environment version in `~/.envshed/version-cache.json` to notice when the remote changed.
 
-Both `pull` and `push` detect breaking changes:
-
-- **Pull:** Warns if your local `.env` has been modified since the last pull. Options: overwrite, keep local, or cancel.
-- **Push:** Warns if the remote environment has been updated by someone else since your last pull. Options: force push, pull first, or cancel.
-
-Use `--force` to skip these checks.
-
-## Version History & Rollback
-
-Every secret change is versioned automatically.
-
-### View History
+## Push
 
 ```bash
-envshed versions DATABASE_URL              # Last 20 versions
-envshed versions API_KEY --limit 50        # More history
-envshed versions SECRET -e production      # Specific environment
+envshed push [-o <org>] [-p <project>] [-e <env>] [-f <path>] [--force]
 ```
 
-Output columns: Version number, Type (created/modified/rolled_back), Date, Comment.
+- **Safe push:** if remote values would be modified, or remote keys are missing from your file, the command aborts and lists them. `--force` pushes anyway.
+- Remote keys missing from the local file are **kept**, never deleted.
+- Changes to a placeholder are saved as your personal override.
+- Linked secrets propagate. On a conflict you choose keep mine, keep theirs, or unlink.
 
-### Rollback
+## Single secrets
 
 ```bash
-envshed rollback DATABASE_URL --version 3
-envshed rollback API_KEY --version 7 -e production
+envshed secret get <KEY>                 # human terminal only
+envshed secret set <KEY>                 # masked prompt, or value from stdin
+envshed secret set <KEY> --placeholder   # declare a key with no shared value
+envshed secret delete <KEY> [-y]
+envshed secret disable <KEY> [-y]
+envshed secret enable <KEY> [-y]
 ```
 
-Creates a new version entry with type `rolled_back`.
+All take `-o`, `-p`, `-e` and `--output json`. `secret set` never takes the value as an argument or flag. When stdin is piped it reads the value from stdin (30 second timeout), so a script can do:
+
+```bash
+my-secret-tool read db-url | envshed secret set DATABASE_URL -e production
+```
+
+`secret get` prints a hint on stderr at a terminal to avoid terminal history exposure. Requesting a disabled secret returns not found.
+
+## Version history and rollback
+
+Every change creates a version (`created`, `updated`, `rolled_back`) with author and time.
+
+```bash
+envshed versions DATABASE_URL              # last 20
+envshed versions API_KEY --limit 50 -e production
+envshed rollback DATABASE_URL --version 2 -e production
+```
+
+A rollback is non-destructive: rolling back from v3 to v2 creates v4 with the v2 value. It is in the audit log and bumps the environment version.
 
 ## Snapshots
 
-Snapshots capture the full state of an environment at a point in time.
-
-### Create
+A snapshot records every secret's version in an environment at a point in time.
 
 ```bash
-envshed snapshot create                                      # Auto-named
-envshed snapshot create -n "pre-migration"                   # Named
-envshed snapshot create -n "pre-deploy-v2" -d "Description"  # With description
-envshed snapshot create -e production -n "prod-backup"       # Specific env
+envshed snapshot create [-n <name>] [-d <description>] [-e <env>]
+envshed snapshot list [-e <env>]
+envshed snapshot restore <snapshot-id> [-e <env>]
 ```
 
-### List
+Restoring sets every secret back to its snapshot value, creating a `rolled_back` version for each. Secrets deleted after the snapshot are skipped. Use snapshots before deploys and bulk changes.
+
+## Import
 
 ```bash
-envshed snapshot list
-envshed snapshot list -e production
+envshed import [file] [options]
 ```
 
-Displays: ID, Name, Date Created.
+| Option | Description |
+|---|---|
+| `[file]` | `.env`, `.json`, `.yaml`, `.yml` or `.csv`. Omit with `--from`. |
+| `--format <format>` | `env`, `json`, `yaml`, `csv` (auto-detected from the extension) |
+| `--force` | Overwrite existing secrets without confirmation |
+| `-o`, `-p`, `-e` | Target context |
+| `--from <source>` | Migrate from an external source. Currently `doppler`. |
+| `--token <token>` | Token for the `--from` source (Doppler service account token; env `DOPPLER_TOKEN`) |
+| `--doppler-project <name>` | One Doppler project (default: every accessible project) |
+| `--doppler-config <name>` | One Doppler config (requires `--doppler-project`) |
+| `--doppler-api-url <url>` | Override the Doppler API URL (default `https://api.doppler.com`) |
+| `--config-map <mapping>` | Rename configs, such as `"prd=production,stg=staging"` |
+| `--dry-run` | Print the migration plan without writing |
 
-### Restore
+Formats:
+
+- `.env`: `KEY=VALUE`, multi-line values in double quotes.
+- JSON: a flat object, or Infisical's export format (array of `key` / `value` objects).
+- YAML: a flat mapping. `yes`, `no`, `true`, `false`, `on`, `off` are kept as strings.
+- CSV: header row with `key` and `value` columns.
+
+Before writing, the CLI lists keys that would be overwritten with a different value and asks to confirm (skip with `--force`).
 
 ```bash
-envshed snapshot restore <snapshot-id>
-envshed snapshot restore abc123 -e production
+envshed import .env
+envshed import secrets.json --format json
+envshed import production.env --env production --force
+envshed import --from doppler --token <doppler-token> --org my-org --dry-run
+envshed import --from doppler --token <doppler-token> --org my-org \
+  --doppler-project backend --config-map "prd=production,stg=staging"
 ```
 
-Restores all secrets to the exact state captured in the snapshot.
+The Doppler migration creates matching Envshed projects and environments and pushes their secrets. Prefer setting `DOPPLER_TOKEN` over passing `--token` on the command line.
 
-## Secret Linking (Cross-Project)
-
-Link secrets across projects so changes propagate automatically. When the source secret changes, linked secrets update too.
-
-### Create a Link
+## Diff
 
 ```bash
-envshed link DATABASE_URL --to-project shared-infra --to-env production
-envshed link REDIS_URL --to-project shared-infra --to-env production -o my-org
+envshed diff <env1> <env2> [-o <org>] [-p <project>] [--show-values]
 ```
 
-### Remove a Link
-
-```bash
-envshed unlink DATABASE_URL
-envshed unlink REDIS_URL -e staging
-```
-
-### Conflict Resolution During Push
-
-When pushing changes to secrets that are linked across projects, envshed prompts:
-1. **Keep mine** — overwrite the linked value
-2. **Keep theirs** — discard your change
-3. **Unlink** — break the link and keep both values independent
-
-## Secret Definitions (Schema)
-
-Definitions document what secrets a project expects — key name, whether it's required, and a description. Useful for onboarding and validation.
-
-```bash
-envshed definition list                                     # List all definitions
-envshed definition create -k DATABASE_URL -d "PostgreSQL connection string" --required
-envshed definition update -k DATABASE_URL -d "Updated description"
-envshed definition delete -k DATABASE_URL
-```
-
-### Placeholder Detection
-
-When pulling, envshed warns about secrets that are still placeholders (matching definitions but not yet set to real values). These typically need personal overrides set in the dashboard.
-
-## Import Secrets
-
-Import from multiple formats:
-
-```bash
-envshed import .env.local --format env       # dotenv format
-envshed import secrets.json --format json    # JSON object {"KEY": "value"}
-envshed import secrets.yaml --format yaml    # YAML mapping
-envshed import secrets.csv --format csv      # CSV with key,value columns
-```
-
-Format is auto-detected from file extension if `--format` is omitted.
-
-## Environment Comparison
-
-Compare secrets between two environments:
-
-```bash
-envshed diff staging production                # Show key differences
-envshed diff staging production --show-values  # Include actual values
-```
-
-Output shows which keys are added, removed, or modified between environments.
-
-## Encryption
-
-- Secrets are encrypted at rest using **AES-256-GCM**
-- Each secret stores: `encrypted_value`, `iv` (initialization vector), `tag` (authentication tag)
-- Personal overrides use the same encryption, keyed per-user
+Compares two environments of the same project: added (`+`), removed (`-`) and changed (`~`) keys, with a summary line. Values are masked as `***`. `--show-values` prints them with a warning on stderr (**human terminal only**, never in CI logs). If either environment cannot be read, the diff aborts with no partial output.

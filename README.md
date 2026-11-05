@@ -1,52 +1,59 @@
 # envshed
 
-Agent skill for [envshed](https://app.envshed.com) — a secrets management CLI for syncing environment variables across teams, projects, and environments.
+Agent skill for [Envshed](https://app.envshed.com), a secrets manager and CLI for syncing environment variables across teams, projects and environments, and for keeping secret values out of AI agent chats.
 
 ## Install
 
 ```bash
-npx skills add irbano-tech/envshed-skill
+npx skills add irbano-tech/envshed-skills
 ```
 
 ## What This Skill Does
 
-When installed, this skill gives your AI coding agent deep knowledge of the envshed CLI, including:
+When installed, this skill gives your AI coding agent working knowledge of Envshed and the `envshed` CLI (checked against CLI 0.22.0):
 
-- All commands, subcommands, flags, and options
-- Configuration files (`.envshed.json`, `~/.envshed/config.json`)
-- Monorepo workspace setup and management
-- Secret operations (pull, push, run, get, set, delete, override)
-- Environment switching, comparison, and access control
-- Version history and rollback
-- Snapshots (create, list, restore)
-- Cross-project secret linking
-- Service tokens for CI/CD pipelines
-- Import from .env, JSON, YAML, and CSV
-- REST API reference (all v1 endpoints)
-- Common workflows and best practices
+- Every command, subcommand and flag, with the current defaults
+- Safety rules for AI agents: never print values, use `envshed run`, ask for missing secrets with `envshed request`
+- `envshed run` in depth: argument handling, exit codes, signals, watch mode and output masking
+- Agent protection: `envshed agent install` (Claude Code hooks and the `envshed-agent-safety` skill), temporary `envshed agent session` access with production approval, and `envshed scan` for values leaked into agent histories
+- Hosted agents: the Envshed MCP server (OAuth sign-in, key names only), machine tokens and GitHub Actions OIDC (`envshed run --oidc`)
+- Secret states and features: disabled secrets, placeholders, personal overrides, `${KEY}` and `${env.KEY}` references, cross-project links, share links, definitions
+- Versions and rollback, snapshots, diff, and import from files or Doppler
+- Configuration (`.envshed.json`, `~/.envshed/config.json`, keychain storage) and resolution order
+- Monorepo workspaces
+- Personal, service and machine tokens, token lifetime, CI/CD examples, members and webhooks
+- REST API v1 routes
 
 ## When It Activates
 
 The skill activates automatically when you ask about:
 
-- Environment variables or secrets management
-- `.env` files and configuration
+- Environment variables, secrets, or `.env` files
 - `envshed` commands or setup
-- CI/CD secret injection
+- A task that needs an API key or other credential
+- Giving an AI agent access to secrets, or the Envshed MCP server
+- CI/CD secrets, service tokens, machine tokens or GitHub Actions OIDC
+- Sharing a secret, or a secret that may have leaked
 - Monorepo workspace configuration
 
 ## Structure
 
 ```
 skills/envshed/
-├── SKILL.md                              # Core skill with all commands and workflows
+├── SKILL.md                              # Agent rules, concepts, command index, workflows
 └── references/
-    ├── workspaces-monorepo.md            # Monorepo setup and workspace management
-    ├── secret-management.md              # Versions, snapshots, linking, definitions
-    ├── environments.md                   # Environment switching, comparison, access
-    ├── ci-cd-service-tokens.md           # CI/CD setup and service token management
-    └── api-reference.md                  # Full REST API v1 endpoint reference
+    ├── agent-safety.md                   # request, agent install, agent session, scan, .envshed-allow
+    ├── run-command.md                    # envshed run: argv, exit codes, signals, watch, masking
+    ├── hosted-agents-mcp-oidc.md         # MCP server, machine tokens, GitHub Actions OIDC
+    ├── sharing-and-states.md             # Disabled, placeholders, overrides, references, links, share links
+    ├── secret-management.md              # pull/push, single secrets, versions, snapshots, import, diff
+    ├── environments.md                   # Environment lifecycle, checkout, rename, env-version
+    ├── workspaces-monorepo.md            # Monorepo setup and workspace behavior
+    ├── ci-cd-service-tokens.md           # Tokens, CI/CD, members, webhooks, completions
+    └── api-reference.md                  # REST API v1 routes
 ```
+
+The separate `envshed-agent-safety` skill, installed by `envshed agent install`, holds the short rule set an agent follows inside a project. This skill is consistent with it and covers the rest of the product.
 
 ## License
 
