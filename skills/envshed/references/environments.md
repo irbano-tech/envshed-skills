@@ -1,109 +1,84 @@
-# Environment Management
+# Environments
 
-Detailed guide for creating, switching, listing, comparing, and managing environments in envshed.
+An environment is a named set of secrets in a project, such as `development`, `staging` or `production`. Each has its own values, version history and access rules. Environment slugs are shared across the organization: new projects get the environments listed under **Settings > Environments** (by default `development`, `staging` and `production`), and the dashboard lets you pick which ones to create.
 
-## What Are Environments?
-
-Environments are named sets of secrets within a project (e.g., `development`, `staging`, `production`). Each environment has its own secret values, version history, and access controls.
-
-## Switching Environments
-
-### Basic Switch
+## Lifecycle commands
 
 ```bash
-envshed env checkout staging         # Switch to staging
-envshed env checkout production      # Switch to production
+envshed env list [-o <org>] [-p <project>] [--output json]
+envshed env create -n <name> [-d <text>] [--output json]
+envshed env update <slug> [-n <name>] [-d <text>] [--output json]
+envshed env delete <slug> [-y] [--output json]
+envshed env duplicate <source-slug> -n <name> [--output json]
 ```
 
-The `checkout` subcommand is aliased as `switch`.
+- `env update` needs `--name` or `--description`. A new name changes the slug, and `.envshed.json` is updated if it was your `defaultEnv`.
+- `env delete` removes the environment, all its secrets and its audit logs. It cannot be undone.
+- `env duplicate` copies every secret into a new environment. The server checks read access to the source.
+- `envshed envs` is a legacy alias of `env list`.
 
-### Change Detection on Switch
-
-When switching environments, if local changes exist against the current environment, envshed prompts:
-
-1. **Push changes** — push your local `.env` to the current environment, then switch
-2. **Discard** — discard local changes and switch
-3. **Keep** — keep local files unchanged, only update `.envshed.json` config
-4. **Cancel** — abort the switch
-
-### Auto-Create
-
-If the target environment doesn't exist on the server, envshed offers to create it automatically.
-
-### Workspace-Specific Switch
+## Switching the active environment
 
 ```bash
-envshed env checkout staging -w apps/api  # Switch only apps/api to staging
+envshed env checkout staging
+envshed env switch staging      # alias
+envshed env staging             # shorthand
 ```
 
-## Listing Environments
+Checkout updates `defaultEnv` in `.envshed.json` and does not touch your `.env` file, so run `envshed pull` afterwards. If the environment does not exist, the CLI offers to create it.
+
+In a monorepo: inside a workspace directory only that workspace switches, at the root every workspace switches, and `envshed --workspace apps/web env checkout staging` switches one.
+
+For a single command without switching, pass `-e <slug>` or set `ENVSHED_ENV`:
 
 ```bash
-envshed envs                         # Uses .envshed.json context
-envshed envs -o my-org -p my-project # Explicit org/project
+export ENVSHED_ENV=staging
+envshed pull
+envshed run -- npm start
 ```
 
-## Environment Version
+`-e` always wins over `ENVSHED_ENV`.
 
-Each environment has a version number that increments on every secret change. Use this to detect staleness.
+## Renaming
 
 ```bash
-envshed env-version                  # Current project's default env
-envshed env-version -e production    # Specific environment
+envshed rename-env staging --name "Staging v2"           # slug follows the name
+envshed rename-env staging --slug pre-prod               # slug only
+envshed rename-env dev --name "Development" --slug development
 ```
 
-Output: version number and last update timestamp.
+- At least one of `--name` or `--slug`.
+- Environments are organization-wide: the rename applies to every project that uses the slug, and the new slug must be unique in the organization. When other projects share the slug, an org owner or admin must do it.
+- Secrets, service tokens and access rules keep working (they use the id). Update `defaultEnv` in any `.envshed.json` that used the old slug.
+- Renaming can change whether agent sessions need approval, since that is read from the name.
 
-## Renaming Environments
+## Environment version
 
 ```bash
-envshed rename-env my-env -n "New Name"          # Rename display name
-envshed rename-env my-env -s new-slug             # Change slug
-envshed rename-env my-env -n "New Name" -s new-slug  # Both
+envshed env-version [-o <org>] [-p <project>] [-e <env>]
+# Version: 42 (updated 2/24/2026, 3:15:00 PM)
 ```
 
-## Comparing Environments
+The version increases on every change. `envshed run --watch` polls it to know when to restart.
+
+## Comparing
 
 ```bash
-envshed diff staging production                # Show key differences
-envshed diff staging production --show-values  # Include actual values
+envshed diff staging production              # values masked as ***
 ```
 
-The diff output shows:
-- Keys only in the first environment
-- Keys only in the second environment
-- Keys present in both but with different values
+See [secret-management.md](secret-management.md#diff).
 
-## Environment Duplication
+## Production-like environments
 
-Clone an environment with all its secrets:
+There is no separate tier setting. Envshed reads words in the slug and name: `production`, `prod`, `prd`, `live`, `producao` and `produccion` mark production, while `dev`, `local`, `test`, `qa`, `staging`, `homolog`, `preview` and `sandbox` mark non-production. Unknown names count as production. This decides whether an agent session needs approval and whether an OIDC trust policy needs a ref or GitHub environment.
 
-```bash
-envshed env duplicate staging -n "staging-copy"
-envshed env duplicate production -n "pre-release" -o my-org -p my-project
-```
+## Access
 
-Also available via API: `POST /api/v1/environments/{orgSlug}/{projectSlug}/{envSlug}/duplicate`
+Org owners and admins can read every environment. Other members need explicit project or environment access, set in the dashboard. Project roles are `admin`, `editor` and `viewer`: admins and editors can fill secret requests, while viewers can read and ask.
 
-## Access Control
+## Tips
 
-Environments support role-based access control:
-
-| Role | Permissions |
-|------|-------------|
-| **admin** | Full control: read, write, delete secrets, manage access |
-| **editor** | Read and write secrets |
-| **viewer** | Read-only access to secrets |
-
-Access is configured per-environment in the web dashboard.
-
-## Staleness Detection
-
-When you `pull` or `run`, envshed compares the remote environment version against your local version cache (`~/.envshed/version-cache.json`). If the remote is newer, it warns you that secrets may be stale.
-
-## Best Practices
-
-- Use consistent environment names across projects (e.g., `development`, `staging`, `production`)
-- Create snapshots before making bulk changes to production environments
-- Use `envshed diff` to review differences before promoting secrets between environments
-- Set up environment-level access control to restrict who can modify production secrets
+- Keep the same environment names across projects.
+- Take a snapshot before bulk changes to production.
+- Review `envshed diff` before promoting values between environments.

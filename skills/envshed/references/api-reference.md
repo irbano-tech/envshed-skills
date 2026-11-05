@@ -1,187 +1,140 @@
-# API Reference
+# REST API Reference
 
-Envshed provides a REST API (v1) for programmatic access to secrets, environments, projects, and organizations.
-
-## Authentication
-
-All API requests require a Bearer token in the `Authorization` header:
-
-```
-Authorization: Bearer envshed_...
-```
-
-Token types:
-- **Personal API tokens** — user-scoped, created via dashboard or `POST /api/v1/tokens`
-- **Service tokens** — scoped to org/project/environment, created via CLI or API
-- **Device flow tokens** — issued after browser-based device code auth
-
-## Base URL
+Envshed has a REST API (v1). The CLI is built on it. Base URL:
 
 ```
 https://app.envshed.com/api/v1
 ```
 
-Override with `ENVSHED_API_URL` or the `apiUrl` field in `.envshed.json`.
+Every request needs a Bearer token:
 
-## Response Format
+```
+Authorization: Bearer <token>
+```
 
-- Default: JSON
-- Set `Accept: text/plain` to receive secrets in `.env` format
+Personal tokens, service tokens, machine tokens and sessions all use this header, each with its own limits (see [ci-cd-service-tokens.md](ci-cd-service-tokens.md)). Machine tokens and sessions are refused on every route except reading their environment's secrets, reading one allowed secret, secret requests, the environment version and `/me`.
 
-## Endpoints
+Do not print API responses that contain secret values in an agent session. Use `envshed run` or a tool that returns only results.
 
-### User
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/me` | Get current user info |
-
-### Organizations
+## Secrets
 
 | Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/orgs` | List user's organizations |
-| `GET` | `/orgs/{orgSlug}` | Get org details |
-| `POST` | `/orgs` | Create organization |
-| `GET` | `/orgs/{orgSlug}/members` | List org members |
-| `POST` | `/orgs/{orgSlug}/members` | Invite member (body: `{email, role}`) |
-| `PATCH` | `/orgs/{orgSlug}/members/{userId}` | Update member role |
-| `DELETE` | `/orgs/{orgSlug}/members/{userId}` | Remove member |
+|---|---|---|
+| `GET` | `/secrets/{org}/{project}/{env}` | All secrets in an environment (references resolved). `Accept: text/plain` returns `.env` format. |
+| `PUT` | `/secrets/{org}/{project}/{env}` | Create or update secrets in bulk |
+| `GET` | `/secrets/{org}/{project}/{env}/{key}` | One secret (references resolved). Disabled or missing keys return `404`. |
+| `PUT` | `/secrets/{org}/{project}/{env}/{key}` | Update one secret |
+| `DELETE` | `/secrets/{org}/{project}/{env}/{key}` | Delete one secret |
+| `PUT` | `/secrets/{org}/{project}/{env}/{key}/override` | Set your personal override |
+| `DELETE` | `/secrets/{org}/{project}/{env}/{key}/override` | Remove your personal override |
 
-### Projects
+The collection response has `secrets`, `placeholders`, `version`, and when non-empty `disabled` (keys hidden on purpose) and `referenceErrors` (unresolved references):
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/projects/{orgSlug}` | List projects |
-| `POST` | `/projects/{orgSlug}` | Create project |
-| `GET` | `/projects/{orgSlug}/{projectSlug}` | Get project |
-| `PUT` | `/projects/{orgSlug}/{projectSlug}` | Update project |
-| `DELETE` | `/projects/{orgSlug}/{projectSlug}` | Delete project |
+```json
+{
+  "secrets": { "DATABASE_URL": "postgres://..." },
+  "placeholders": [],
+  "disabled": ["LEGACY_API_KEY"],
+  "version": 42
+}
+```
 
-### Environments
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/environments/{orgSlug}/{projectSlug}` | List environments |
-| `POST` | `/environments/{orgSlug}/{projectSlug}` | Create environment |
-| `GET` | `/environments/{orgSlug}/{projectSlug}/{envSlug}` | Get environment |
-| `PUT` | `/environments/{orgSlug}/{projectSlug}/{envSlug}` | Update environment |
-| `DELETE` | `/environments/{orgSlug}/{projectSlug}/{envSlug}` | Delete environment |
-| `POST` | `/environments/{orgSlug}/{projectSlug}/{envSlug}/duplicate` | Clone environment |
-
-### Secrets
+## Versions and snapshots
 
 | Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/secrets/{orgSlug}/{projectSlug}/{envSlug}` | List all secrets |
-| `POST` | `/secrets/{orgSlug}/{projectSlug}/{envSlug}` | Create/update secrets (bulk) |
-| `GET` | `/secrets/{orgSlug}/{projectSlug}/{envSlug}/{key}` | Get single secret |
-| `PUT` | `/secrets/{orgSlug}/{projectSlug}/{envSlug}/{key}` | Update secret |
-| `DELETE` | `/secrets/{orgSlug}/{projectSlug}/{envSlug}/{key}` | Delete secret |
-| `POST` | `/secrets/{orgSlug}/{projectSlug}/{envSlug}/{key}/override` | Set personal override |
-| `DELETE` | `/secrets/{orgSlug}/{projectSlug}/{envSlug}/{key}/override` | Remove override |
+|---|---|---|
+| `GET` | `/versions/{org}/{project}/{env}/{key}` | Version history of a secret |
+| `POST` | `/versions/{org}/{project}/{env}/{key}/rollback` | Roll back, body `{"targetVersion": 2}` |
+| `GET` | `/snapshots/{org}/{project}/{env}` | List snapshots |
+| `POST` | `/snapshots/{org}/{project}/{env}` | Create a snapshot, body `{"name": "..."}` |
+| `POST` | `/snapshots/{org}/{project}/{env}/restore` | Restore, body `{"snapshotId": "..."}` |
 
-### Versions
+## Environment version
 
 | Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/versions/{orgSlug}/{projectSlug}/{envSlug}/{key}` | List versions |
-| `POST` | `/versions/{orgSlug}/{projectSlug}/{envSlug}/{key}/rollback` | Rollback to version |
+|---|---|---|
+| `GET` | `/version/{org}/{project}/{env}` | Current version (supports ETag / `304`, used by `run --watch`) |
+| `GET` | `/env-version/{envId}` | Version by environment id |
 
-### Secret Definitions
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/secret-definitions/{orgSlug}/{projectSlug}` | List definitions |
-| `POST` | `/secret-definitions/{orgSlug}/{projectSlug}` | Create definition |
-| `PUT` | `/secret-definitions/{orgSlug}/{projectSlug}/{key}` | Update definition |
-| `DELETE` | `/secret-definitions/{orgSlug}/{projectSlug}/{key}` | Delete definition |
-
-### Secret Links
+## Organizations and members
 
 | Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/secret-links/{orgSlug}/{projectSlug}/{envSlug}` | Create link |
-| `DELETE` | `/secret-links/{orgSlug}/{projectSlug}/{envSlug}` | Delete link |
-| `GET` | `/secret-links/resolve` | Resolve linked secrets |
+|---|---|---|
+| `GET` | `/me` | Current user, or the token's type and scope |
+| `GET` / `POST` | `/orgs` | List / create organizations |
+| `GET` / `PUT` / `DELETE` | `/orgs/{org}` | Get / update / delete an organization |
+| `GET` / `POST` | `/orgs/{org}/members` | List / invite members |
+| `PATCH` / `DELETE` | `/orgs/{org}/members/{userId}` | Change role / remove |
 
-### Snapshots
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/snapshots/{orgSlug}/{projectSlug}/{envSlug}` | Create snapshot |
-| `GET` | `/snapshots/{orgSlug}/{projectSlug}/{envSlug}` | List snapshots |
-| `POST` | `/snapshots/{orgSlug}/{projectSlug}/{envSlug}/restore` | Restore snapshot |
-
-### Service Tokens
+## Projects and environments
 
 | Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/service-tokens/{orgSlug}` | Create service token |
-| `GET` | `/service-tokens/{orgSlug}` | List service tokens |
-| `DELETE` | `/service-tokens/{orgSlug}?id={tokenId}` | Revoke token |
+|---|---|---|
+| `GET` / `POST` | `/projects/{org}` | List / create projects |
+| `GET` / `PUT` / `DELETE` | `/projects/{org}/{project}` | Get / update / delete a project |
+| `GET` / `POST` | `/environments/{org}/{project}` | List / create environments |
+| `GET` / `PUT` / `DELETE` | `/environments/{org}/{project}/{env}` | Get / update / delete an environment |
+| `POST` | `/environments/{org}/{project}/{env}/duplicate` | Duplicate with all secrets |
 
-### Personal API Tokens
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/tokens` | List user's tokens |
-| `POST` | `/tokens` | Create token |
-| `DELETE` | `/tokens/{id}` | Delete token |
-
-### Device Auth Flow
+## Definitions and links
 
 | Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/device` | Initiate device code flow |
-| `GET` | `/device?device_code={code}` | Poll for token |
+|---|---|---|
+| `GET` / `POST` | `/secret-definitions/{org}/{project}` | List / create definitions |
+| `GET` / `PUT` / `DELETE` | `/secret-definitions/{org}/{project}/{key}` | Get / update / delete a definition |
+| `GET` / `POST` / `DELETE` | `/secret-links/{org}/{project}/{env}` | Links for an environment |
+| `POST` | `/secret-links/resolve` | Resolve link conflicts |
 
-### Environment Version
+## Share links
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/version/{orgSlug}/{projectSlug}/{envSlug}` | Get environment version |
-| `GET` | `/env-version/{envId}` | Get version by environment ID |
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/share-links/{org}` | User token | Create a link for `keys` in `projectSlug` / `envSlug` (omit `keys` for all) |
+| `GET` | `/share-links/{org}` | User token | List links visible to you |
+| `DELETE` | `/share-links/{org}/{id}` | User token | Revoke |
+| `GET` | `/shared/{id}` | None | Public status and metadata |
+| `POST` | `/shared/{id}` | None | Open, body `{"key": "...", "password": "..."}` |
 
-### Webhooks
+Service tokens cannot create share links.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/webhooks/{orgSlug}` | List webhooks |
-| `POST` | `/webhooks/{orgSlug}` | Create webhook |
-| `PUT` | `/webhooks/{orgSlug}/{id}` | Update webhook |
-| `DELETE` | `/webhooks/{orgSlug}/{id}` | Delete webhook |
-| `POST` | `/webhooks/{orgSlug}/{id}/test` | Test webhook |
-
-### Notifications
+## Tokens
 
 | Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/notifications` | Get user notifications |
+|---|---|---|
+| `GET` / `POST` | `/tokens` | List / create personal tokens |
+| `DELETE` | `/tokens?id={id}` | Delete a personal token |
+| `GET` / `POST` | `/service-tokens/{org}` | List / create service tokens |
+| `PATCH` | `/service-tokens/{org}/{tokenId}` | Update name, description or active status |
+| `DELETE` | `/service-tokens/{org}?id={tokenId}` | Revoke |
+| `POST` | `/device` | Start the CLI device-code flow |
+
+Create a service token:
+
+```bash
+curl -X POST https://app.envshed.com/api/v1/service-tokens/my-org \
+  -H "Authorization: Bearer $ENVSHED_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "CI Token", "scope": "project", "projectId": "<project-id>", "permission": "read"}'
+```
+
+The service-token routes do not list, update or revoke machine tokens. Manage those on the **Hosted agents** screen.
+
+## Webhooks and notifications
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` / `POST` | `/webhooks/{org}` | List / create webhooks |
+| `PUT` / `DELETE` | `/webhooks/{org}/{id}` | Update / delete |
+| `POST` | `/webhooks/{org}/{id}/test` | Send a test event |
+| `GET` | `/notifications` | Your notifications |
+
+## Agents
+
+Secret requests, agent sessions and the MCP server have their own routes. Use them through `envshed request`, `envshed agent session` and the MCP endpoint `https://app.envshed.com/api/mcp` (see [hosted-agents-mcp-oidc.md](hosted-agents-mcp-oidc.md)).
 
 ## Roles
 
-### Organization Roles
-
-| Role | Permissions |
-|------|-------------|
-| `owner` | Full control, billing, delete org |
-| `admin` | Manage members, projects, and settings |
-| `member` | Create and manage own projects |
-| `viewer` | Read-only access |
-
-### Project Roles
-
-| Role | Permissions |
-|------|-------------|
-| `admin` | Full project control |
-| `editor` | Read/write secrets |
-| `viewer` | Read-only |
-
-### Environment Roles
-
-| Role | Permissions |
-|------|-------------|
-| `admin` | Full environment control |
-| `editor` | Read/write secrets |
-| `viewer` | Read-only |
+| Level | Roles |
+|---|---|
+| Organization | `owner`, `admin`, `member`, `viewer`. Owners and admins can reach every project. |
+| Project | `admin`, `editor`, `viewer` |
