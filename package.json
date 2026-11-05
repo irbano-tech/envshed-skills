@@ -1,7 +1,7 @@
 {
   "name": "envshed-skills",
-  "version": "1.0.0",
-  "description": "Agent skill for envshed — secrets management CLI for syncing environment variables across teams, projects, and environments",
+  "version": "1.1.0",
+  "description": "Agent skill for Envshed: secrets management CLI for syncing environment variables across teams, projects and environments, with safe secret handling for AI agents",
   "keywords": [
     "agent-skill",
     "envshed",
@@ -13,7 +13,9 @@
     "secrets-management",
     "cli",
     "monorepo",
-    "ci-cd"
+    "ci-cd",
+    "mcp",
+    "ai-agents"
   ],
   "license": "MIT",
   "repository": {
