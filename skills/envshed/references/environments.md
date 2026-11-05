@@ -25,7 +25,12 @@ envshed env switch staging      # alias
 envshed env staging             # shorthand
 ```
 
-Checkout updates `defaultEnv` in `.envshed.json` and does not touch your `.env` file, so run `envshed pull` afterwards. If the environment does not exist, the CLI offers to create it.
+Checkout verifies the environment exists (and offers to create it if not), updates `defaultEnv` in `.envshed.json`, and then pulls the new environment's secrets into your env file. If the file has unpushed changes against the current environment, it first asks what to do:
+
+- **Push** the local changes to the current environment, then switch and pull.
+- **Discard** them, then switch and pull.
+- **Keep** the local file as it is and only change `defaultEnv`.
+- **Cancel** the switch.
 
 In a monorepo: inside a workspace directory only that workspace switches, at the root every workspace switches, and `envshed --workspace apps/web env checkout staging` switches one.
 

@@ -47,7 +47,7 @@ envshed init -o my-org -p my-app -e development      # writes .envshed.json
 envshed pull                                         # writes .env
 envshed run -- npm start                             # injects secrets, no file on disk
 envshed push                                         # uploads local .env changes
-envshed env staging                                  # switch the default environment
+envshed env staging                                  # switch the default environment and pull it
 envshed branch                                       # show org / project / env context
 ```
 
@@ -163,7 +163,7 @@ Most commands that touch secrets take `-o, --org`, `-p, --project` and `-e, --en
 | `envshed org list` / `org create -n <name> [-s <slug>] [-d <text>]` | Organizations (`orgs` is a legacy alias) |
 | `envshed project list` / `create -n <name>` / `update <slug>` / `delete <slug>` | Projects (`projects` is a legacy alias) |
 | `envshed env list` / `create -n <name>` / `update <slug>` / `delete <slug>` / `duplicate <src> -n <name>` | Environments (`envs` is a legacy alias) |
-| `envshed env checkout <slug>` (or `env switch <slug>`, or `env <slug>`) | Change `defaultEnv` in `.envshed.json` |
+| `envshed env checkout <slug>` (or `env switch <slug>`, or `env <slug>`) | Change `defaultEnv` and pull; asks first if the env file has unpushed changes |
 | `envshed rename-env <slug> [-n <name>] [-s <slug>]` | Rename an environment across the organization |
 | `envshed env-version` | Environment version number and last update |
 | `envshed member list` / `invite <email> -r <role>` / `role <email> -r <role>` / `remove <email>` | Org members (admin or owner, user token only) |

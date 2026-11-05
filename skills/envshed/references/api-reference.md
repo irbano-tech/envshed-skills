@@ -14,7 +14,7 @@ Authorization: Bearer <token>
 
 Personal tokens, service tokens, machine tokens and sessions all use this header, each with its own limits (see [ci-cd-service-tokens.md](ci-cd-service-tokens.md)). Machine tokens and sessions are refused on every route except reading their environment's secrets, reading one allowed secret, secret requests, the environment version and `/me`.
 
-Do not print API responses that contain secret values in an agent session. Use `envshed run` or a tool that returns only results.
+As an AI agent, do not print API responses that contain secret values. Use `envshed run` or a tool that returns only results.
 
 ## Secrets
 
