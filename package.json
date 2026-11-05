@@ -18,10 +18,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/irbano-tech/envshed-skill.git"
+    "url": "git+https://github.com/irbano-tech/envshed-skills.git"
   },
-  "homepage": "https://github.com/irbano-tech/envshed-skill#readme",
+  "homepage": "https://github.com/irbano-tech/envshed-skills#readme",
   "bugs": {
-    "url": "https://github.com/irbano-tech/envshed-skill/issues"
+    "url": "https://github.com/irbano-tech/envshed-skills/issues"
   }
 }

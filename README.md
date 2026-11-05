@@ -5,7 +5,7 @@ Agent skill for [envshed](https://app.envshed.com) — a secrets management CLI 
 ## Install
 
 ```bash
-npx skills add irbano-tech/envshed-skill
+npx skills add irbano-tech/envshed-skills
 ```
 
 ## What This Skill Does
