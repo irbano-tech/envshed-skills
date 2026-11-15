@@ -43,6 +43,7 @@ skills/envshed/
 ├── SKILL.md                              # Agent rules, concepts, command index, workflows
 └── references/
     ├── agent-safety.md                   # request, agent install, agent session, scan, .envshed-allow
+    ├── migrate-with-agent.md             # move .env files into Envshed by key name, with a conflict policy
     ├── run-command.md                    # envshed run: argv, exit codes, signals, watch, masking
     ├── hosted-agents-mcp-oidc.md         # MCP server, machine tokens, GitHub Actions OIDC
     ├── sharing-and-states.md             # Disabled, placeholders, overrides, references, links, share links

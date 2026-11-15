@@ -8,6 +8,7 @@ progressive_disclosure:
     quick_start: "1. Read the agent rules below if you are an AI agent. 2. Use the command index. 3. Open a reference for depth."
   references:
     - agent-safety.md
+    - migrate-with-agent.md
     - run-command.md
     - hosted-agents-mcp-oidc.md
     - sharing-and-states.md
@@ -136,7 +137,7 @@ Most commands that touch secrets take `-o, --org`, `-p, --project` and `-e, --en
 | `envshed secret disable <KEY>` / `secret enable <KEY>` | Hide from consumption / bring back, per environment |
 | `envshed secret override set <KEY>` / `override remove <KEY>` | Your personal override (user token only) |
 | `envshed diff <env1> <env2> [--show-values]` | Compare two environments, values masked by default |
-| `envshed import [file] [--format env\|json\|yaml\|csv] [--force]` | Import from a file |
+| `envshed import [file] [--dry-run] [--on-conflict skip\|overwrite\|fail] [--create-env] [--output json]` | Import from a file, by key name; see [migrate-with-agent.md](references/migrate-with-agent.md) |
 | `envshed import --from doppler --token <doppler-token> [--dry-run]` | Migrate from Doppler |
 | `envshed versions <KEY> [--limit <n>]` | Version history (default 20) |
 | `envshed rollback <KEY> --version <n>` | Restore a version as a new version |
@@ -262,6 +263,7 @@ envshed import --from doppler --token <doppler-token> --org my-org
 | [run-command.md](references/run-command.md) | `run` argv rules, exit codes, signals, watch mode, output masking |
 | [hosted-agents-mcp-oidc.md](references/hosted-agents-mcp-oidc.md) | MCP server, machine tokens, GitHub Actions OIDC, which to use |
 | [sharing-and-states.md](references/sharing-and-states.md) | Disabled, placeholders, overrides, references, links, share links, definitions |
+| [migrate-with-agent.md](references/migrate-with-agent.md) | Moving a project's .env files into Envshed without reading them: steps, JSON, exit codes, user decisions |
 | [secret-management.md](references/secret-management.md) | get/set/delete, pull/push, versions, rollback, snapshots, import, diff |
 | [environments.md](references/environments.md) | Environment lifecycle, checkout, rename, env-version |
 | [workspaces-monorepo.md](references/workspaces-monorepo.md) | Workspaces config and behavior |
