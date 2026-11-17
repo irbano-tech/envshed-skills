@@ -123,6 +123,22 @@ path:tests/fixtures/.env.test
 
 A line with no wildcard is ignored, and so is a line that looks like a secret. `path:` never applies to `~/.envshed/config.json`. An agent can edit this file, so review changes to it.
 
+## envshed agent rules
+
+Writes a short project rule that tells any AI agent to use Envshed for secrets. Unlike `agent install` (Claude Code, user level, hooks), it goes into the repository and works for every agent that reads instruction files.
+
+```bash
+envshed agent rules            # show files and text, then ask
+envshed agent rules --yes      # without a terminal
+envshed agent rules --all      # also Cursor, Copilot and Gemini files
+envshed agent rules --print    # print the rule text only
+```
+
+- Files: `AGENTS.md` and `CLAUDE.md` always; `.cursor/rules/envshed.mdc` (`alwaysApply: true`) when the project has `.cursor`; `.github/copilot-instructions.md` when it exists; `GEMINI.md` when it or `.gemini` exists.
+- The rule sits between `<!-- envshed:rules:start -->` and `<!-- envshed:rules:end -->`. The rest of each file is kept, and a second run changes nothing. An existing `.cursor/rules/envshed.mdc` without the markers is left alone.
+- `envshed init` offers it at the end (`--agent-rules` without a terminal, `--no-agent-rules` to skip); `agent install` offers it inside a connected project.
+- It is an instruction, not a barrier. If you are an agent and the user asks you to set up a project, offer `envshed agent rules`; do not edit the block by hand.
+
 ## envshed agent session
 
 Short-lived, read-only access to one environment, optionally to specific keys, without handing the agent your login. The server enforces the limits and records every read under the agent's name.
