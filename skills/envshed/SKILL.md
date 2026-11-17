@@ -124,6 +124,8 @@ Most commands that touch secrets take `-o, --org`, `-p, --project` and `-e, --en
 | `envshed token show` / `token clear` | Show the masked token / remove it from keychain and config |
 | `envshed token set --token-stdin` | Save a token (`token set <token>` is deprecated) |
 | `envshed init [-o -p -e] [--api-url] [-w <path>]` | Create `.envshed.json`; interactive monorepo detection without flags |
+| `envshed init ... --yes --import .env=development --import .env.production=production` | Without a terminal: import only the files you name, each into its environment (CLI 0.27+). Plain `--import` takes only files whose name says the environment and skips the top folder's files; `--yes` alone imports nothing |
+| `envshed init ... --layout repo\|apps` | With a `.env` at the top and apps in subfolders: one project for the repository (`repo`) or one per app (`apps`) (CLI 0.27+) |
 | `envshed branch` | Show org / project / env (and workspaces) from local config, no login needed |
 
 ### Secrets
