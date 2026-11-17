@@ -30,7 +30,7 @@ Install: `npm install -g envshed` (Node.js 18 or later). Check with `envshed --v
 Whatever you see ends up in the chat history and at the model provider. Work so that you never see a secret value. These rules match the `envshed-agent-safety` skill that `envshed agent install` writes (see [agent-safety.md](references/agent-safety.md)):
 
 1. **Never print a value.** Do not put one in a command line, a tool argument, a file, a commit or your reply.
-2. **Use `envshed run -- <command>`** to give a program its secrets. The program gets the values, you do not. In agent mode the output is masked as `[ENVSHED:KEY_NAME]`.
+2. **Use `envshed run -- <command>`** to give a program its secrets. The program gets the values, you do not. In agent mode the output is masked as `[ENVSHED:KEY_NAME]`. Outside Claude Code, write `envshed run --redact -- <command>` to be sure the output is masked.
 3. **Do not run** `envshed secret get`, `envshed pull --stdout` (or `pull -f` aimed at the terminal), `envshed diff --show-values`, or `envshed share open` without `--file`. These are for a person in their own terminal.
 4. **Do not run** `envshed run -- printenv`, `envshed run -- env`, or anything that prints the injected environment. Do not pass `--no-redact` and do not change `ENVSHED_AGENT_MODE`.
 5. **Do not read** `.env`, `.env.local`, `.envrc` or files under `~/.envshed/`. `.env.example` is fine.
@@ -53,6 +53,8 @@ envshed branch                                       # show org / project / env 
 ```
 
 To protect a Claude Code setup: `envshed agent install`, then restart Claude Code.
+
+To make every AI agent that opens a repository use Envshed for secrets (Claude Code, Cursor, Copilot, Codex, Gemini): `envshed agent rules` in the project folder, then commit the files it writes.
 
 ## Core concepts
 
@@ -153,6 +155,7 @@ Most commands that touch secrets take `-o, --org`, `-p, --project` and `-e, --en
 | `envshed request <KEY> --reason <text> [--timeout <d>] [--no-wait]` | Ask a person to fill a secret in the dashboard |
 | `envshed agent install [--agent claude-code] [--scope user\|project]` | Install hooks and the `envshed-agent-safety` skill |
 | `envshed agent uninstall [--agent] [--scope]` | Remove only what install added |
+| `envshed agent rules [--all] [--yes] [--print]` | Write the project rule for AI agents into AGENTS.md, CLAUDE.md and the files of tools the project uses |
 | `envshed agent session -e <env> [--ttl <d>] [--keys <list>] [--reason <text>]` | Temporary read-only session for an agent |
 | `envshed agent session list` / `agent session revoke <id>` | List / end sessions |
 | `envshed scan [--path <p>] [--formats-only] [--no-mark] [--clean [--yes]] [--undo [id]] [--forget-backups]` | Find vault values and token formats in agent histories |
