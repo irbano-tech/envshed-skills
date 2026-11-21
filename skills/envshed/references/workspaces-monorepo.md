@@ -12,6 +12,8 @@ envshed workspace remove apps/web
 envshed workspace list
 ```
 
+In a terminal, `envshed init` without plan flags opens a step-by-step screen with a table of apps: each app connects to a project or stays not connected, and a `.env` at the repository root needs a project chosen (or Don't connect) before you can continue. With flags such as `--org`, `--workspace` or `--yes`, and without a terminal, it keeps the prompts and output of the plan flow (CLI 0.29).
+
 ## Configuration
 
 ```json
